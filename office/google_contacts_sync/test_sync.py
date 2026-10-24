@@ -1,6 +1,6 @@
 """Integration tests against a real site, with Google replaced by a mock.
 
-Run on a test site:  bench --site <test-site> run-tests --app google_contacts_sync
+Run on a test site:  bench --site <test-site> run-tests --app office
 """
 
 from unittest.mock import MagicMock, patch
@@ -9,7 +9,7 @@ import frappe
 from frappe.tests import IntegrationTestCase
 from googleapiclient.errors import HttpError
 
-from google_contacts_sync import sync
+from office.google_contacts_sync import sync
 
 ACCOUNT_EMAIL = "gcs-test@example.com"
 EMAIL = "ali.gcs-test@example.com"
@@ -44,7 +44,8 @@ class TestGoogleContactsSync(IntegrationTestCase):
 		self.service = MagicMock()
 		self.people = self.service.people.return_value
 		patch(
-			"google_contacts_sync.sync.get_google_contacts_object", return_value=(self.service, None)
+			"office.google_contacts_sync.sync.get_google_contacts_object",
+			return_value=(self.service, None),
 		).start()
 		self.enqueue = patch("frappe.enqueue").start()
 		self.addCleanup(patch.stopall)
@@ -120,7 +121,7 @@ class TestGoogleContactsSync(IntegrationTestCase):
 		self.assertTrue(contact.skip_google_sync)
 
 	def test_existing_contact_with_same_email_is_merged_not_duplicated(self):
-		existing = self.make_contact(company_name="Nexstone")
+		existing = self.make_contact(company_name="Farsangan")
 		self.enqueue.reset_mock()
 		google_person = {**person(), "phoneNumbers": [{"value": "+49 151 000000"}]}
 
@@ -128,7 +129,7 @@ class TestGoogleContactsSync(IntegrationTestCase):
 
 		contact = self.contact()
 		self.assertEqual(contact.name, existing.name)
-		self.assertEqual(contact.company_name, "Nexstone")  # Frappe data kept
+		self.assertEqual(contact.company_name, "Farsangan")  # Frappe data kept
 		self.assertEqual(contact.phone_nos[0].phone, "+49 151 000000")  # Google data added
 		self.assertEqual(
 			self.queued(sync.push_contact)[0]["contact"], existing.name

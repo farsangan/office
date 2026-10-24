@@ -1,21 +1,21 @@
 """Plain unit tests, no database needed.
 
-Run with bench:  bench --site <site> run-tests --module google_contacts_sync.test_mapping
-or directly:     python -m unittest google_contacts_sync.test_mapping
+Run with bench:  bench --site <site> run-tests --module office.google_contacts_sync.test_mapping
+or directly:     python -m unittest office.google_contacts_sync.test_mapping
 """
 
 import unittest
 
-from google_contacts_sync.mapping import from_contact, from_google, to_google
+from office.google_contacts_sync.mapping import from_contact, from_google, to_google
 
 PERSON = {
 	"resourceName": "people/c1",
 	"etag": "etag-1",
-	"names": [{"givenName": "Ali", "familyName": "Saburi", "displayName": "Ali Saburi"}],
-	"organizations": [{"name": "Nexstone", "title": "Sales"}],
+	"names": [{"givenName": "Ali", "familyName": "Amini", "displayName": "Ali Amini"}],
+	"organizations": [{"name": "Farsangan", "title": "Sales"}],
 	"emailAddresses": [
 		{"value": "ali@home.example", "type": "home"},
-		{"value": "ali@nexstone.example", "type": "work", "metadata": {"primary": True}},
+		{"value": "ali@farsangan.example", "type": "work", "metadata": {"primary": True}},
 	],
 	"phoneNumbers": [{"value": "+49 151 000000", "type": "mobile", "metadata": {"primary": True}}],
 }
@@ -23,10 +23,10 @@ PERSON = {
 VALUES = {
 	"first_name": "Ali",
 	"middle_name": "",
-	"last_name": "Saburi",
-	"company_name": "Nexstone",
+	"last_name": "Amini",
+	"company_name": "Farsangan",
 	"designation": "Sales",
-	"emails": ["ali@nexstone.example", "ali@home.example"],
+	"emails": ["ali@farsangan.example", "ali@home.example"],
 	"phones": ["+49 151 000000"],
 }
 
@@ -40,7 +40,7 @@ class TestFromGoogle(unittest.TestCase):
 		self.assertEqual(values["first_name"], "x@example.com")
 
 	def test_company_only_person_keeps_empty_first_name(self):
-		values = from_google({"organizations": [{"name": "Nexstone"}]})
+		values = from_google({"organizations": [{"name": "Farsangan"}]})
 		self.assertEqual(values["first_name"], "")
 
 
@@ -48,12 +48,12 @@ class TestFromContact(unittest.TestCase):
 	def test_matches_the_google_shape(self):
 		contact = {
 			"first_name": "Ali",
-			"last_name": "Saburi",
-			"company_name": "Nexstone",
+			"last_name": "Amini",
+			"company_name": "Farsangan",
 			"designation": "Sales",
 			"email_ids": [
 				{"email_id": "ali@home.example", "is_primary": 0},
-				{"email_id": "ali@nexstone.example", "is_primary": 1},
+				{"email_id": "ali@farsangan.example", "is_primary": 1},
 			],
 			"phone_nos": [{"phone": "+49 151 000000", "is_primary_phone": 1}],
 		}
@@ -66,11 +66,11 @@ class TestToGoogle(unittest.TestCase):
 		self.assertEqual(
 			body["emailAddresses"],
 			[
-				{"value": "ali@nexstone.example", "type": "work", "metadata": {"sourcePrimary": True}},
+				{"value": "ali@farsangan.example", "type": "work", "metadata": {"sourcePrimary": True}},
 				{"value": "ali@home.example", "type": "home"},
 			],
 		)
-		self.assertEqual(body["organizations"], [{"name": "Nexstone", "title": "Sales"}])
+		self.assertEqual(body["organizations"], [{"name": "Farsangan", "title": "Sales"}])
 
 	def test_round_trip_is_stable(self):
 		# What we send to Google must read back as the same values, or the sync would never settle.

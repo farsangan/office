@@ -1,15 +1,13 @@
 [project]
-name = "google_contacts_sync"
-authors = [
-    { name = "Nexstone", email = "farsangan@gmail.com" }
-]
-description = "Two-way sync between Frappe Contacts and Google Contacts"
+name = "office"
+authors = [{ name = "Farsangan", email = "farsangan@gmail.com" }]
+description = "Farsangan's custom features for Frappe"
 requires-python = ">=3.14"
 readme = "README.md"
 license = { text = "MIT" }
 dynamic = ["version"]
 dependencies = [
-    # frappe, google-api-python-client: installed with Frappe, managed by bench.
+  # frappe, google-api-python-client: installed with Frappe, managed by bench.
 ]
 
 [build-system]

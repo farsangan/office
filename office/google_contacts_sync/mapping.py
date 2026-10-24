@@ -3,8 +3,8 @@
 No Frappe imports here, so these functions are easy to read and test.
 Both sides are reduced to the same "values" dict, with the primary email/phone first:
 
-    {"first_name": "Ali", "middle_name": "", "last_name": "Saburi",
-     "company_name": "Nexstone", "designation": "Sales",
+    {"first_name": "Ali", "middle_name": "", "last_name": "Amini",
+     "company_name": "Farsangan", "designation": "Sales",
      "emails": ["ali@example.com"], "phones": ["+49 151 000000"]}
 """
 

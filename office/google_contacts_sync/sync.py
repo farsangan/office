@@ -13,7 +13,7 @@ from frappe import _
 from frappe.integrations.doctype.google_contacts.google_contacts import get_google_contacts_object
 from googleapiclient.errors import HttpError
 
-from google_contacts_sync.mapping import NAME_FIELDS, from_contact, from_google, to_google
+from office.google_contacts_sync.mapping import NAME_FIELDS, from_contact, from_google, to_google
 
 PERSON_FIELDS = "names,emailAddresses,phoneNumbers,organizations"
 

@@ -1,0 +1,24 @@
+[project]
+name = "google_contacts_sync"
+authors = [
+    { name = "Nexstone", email = "farsangan@gmail.com" }
+]
+description = "Two-way sync between Frappe Contacts and Google Contacts"
+requires-python = ">=3.14"
+readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
+dependencies = [
+    # frappe, google-api-python-client: installed with Frappe, managed by bench.
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+
+[tool.ruff.format]
+indent-style = "tab"

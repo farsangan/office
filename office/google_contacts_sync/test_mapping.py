@@ -39,6 +39,11 @@ class TestFromGoogle(unittest.TestCase):
 		values = from_google({"emailAddresses": [{"value": "x@example.com"}]})
 		self.assertEqual(values["first_name"], "x@example.com")
 
+	def test_person_without_synced_fields_maps_to_empty_values(self):
+		# e.g. a deleted person: sync guards on this so it never blanks a contact
+		values = from_google({"resourceName": "people/c1", "metadata": {"deleted": True}})
+		self.assertFalse(any(values.values()))
+
 	def test_company_only_person_keeps_empty_first_name(self):
 		values = from_google({"organizations": [{"name": "Farsangan"}]})
 		self.assertEqual(values["first_name"], "")

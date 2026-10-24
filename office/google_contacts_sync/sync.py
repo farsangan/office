@@ -15,7 +15,9 @@ from googleapiclient.errors import HttpError
 
 from office.google_contacts_sync.mapping import NAME_FIELDS, from_contact, from_google, to_google
 
-PERSON_FIELDS = "names,emailAddresses,phoneNumbers,organizations"
+SYNCED_FIELDS = "names,emailAddresses,phoneNumbers,organizations"
+# `metadata` holds the sources updateContact needs and the `deleted` flag of a sync. It can't be written.
+PERSON_FIELDS = SYNCED_FIELDS + ",metadata"
 
 
 # Google -> Frappe
@@ -50,9 +52,9 @@ def pull(account: str):
 	try:
 		people, next_sync_token = _list_people(service, sync_token)
 	except HttpError as e:
-		if b"EXPIRED_SYNC_TOKEN" not in e.content:
+		if not sync_token or not _is_bad_sync_token(e):
 			raise
-		# Google expires sync tokens after 7 days. Start over with a full sync.
+		# Google expires sync tokens after 7 days, and rejects them when the request changed. Start over.
 		sync_token = None
 		people, next_sync_token = _list_people(service, None)
 
@@ -112,6 +114,11 @@ def apply_person(account: str, person: dict):
 		return
 
 	values = from_google(person)
+	if not any(values.values()):
+		# Never blank a contact: a person without any synced data is a glitch, not a change.
+		frappe.log_error(f"Google Contacts sync skipped {resource_name}: no synced data")
+		return
+
 	if not name and (existing := _find_unlinked_contact(values["emails"])):
 		link_existing_contact(existing, account, resource_name, values)
 		return
@@ -238,17 +245,31 @@ def push_contact(contact: str, account: str):
 		)
 		return
 
-	person = people.get(resourceName=doc.google_contacts_id, personFields=PERSON_FIELDS).execute()
+	try:
+		_update_person(people, doc.google_contacts_id, values)
+	except HttpError as e:
+		if e.resp.status == 404:  # deleted in Google
+			unlink(contact)
+			return
+		if not _is_stale_etag(e):
+			raise
+		# The person changed in Google after we read it: read it again and retry once.
+		_update_person(people, doc.google_contacts_id, values)
+
+
+def _update_person(people, resource_name: str, values: dict):
+	person = people.get(resourceName=resource_name, personFields=PERSON_FIELDS).execute()
 	if from_google(person) == values:
 		return  # nothing Google cares about changed
 
+	sources = person.get("metadata", {}).get("sources")
+	if not sources:
+		raise ValueError(f"Google returned {resource_name} without metadata.sources, so it can't be updated")
 	body = to_google(values, person)
-	# Google identifies the contact (and rejects stale writes) by these.
+	# Google identifies the contact by these and rejects the write if it changed since we read it.
 	body["etag"] = person["etag"]
-	body["metadata"] = person["metadata"]
-	people.updateContact(
-		resourceName=doc.google_contacts_id, updatePersonFields=PERSON_FIELDS, body=body
-	).execute()
+	body["metadata"] = {"sources": sources}
+	people.updateContact(resourceName=resource_name, updatePersonFields=SYNCED_FIELDS, body=body).execute()
 
 
 def delete_in_google(account: str, resource_name: str):
@@ -258,3 +279,22 @@ def delete_in_google(account: str, resource_name: str):
 	except HttpError as e:
 		if e.resp.status != 404:  # 404: already deleted in Google
 			raise
+
+
+def _error_content(e: HttpError) -> bytes:
+	content = e.content or b""
+	return content if isinstance(content, bytes) else content.encode()
+
+
+def _is_bad_sync_token(e: HttpError) -> bool:
+	content = _error_content(e)
+	return b"EXPIRED_SYNC_TOKEN" in content or (
+		e.resp.status == 400 and b"INVALID_ARGUMENT" in content and b"sync token" in content.lower()
+	)
+
+
+def _is_stale_etag(e: HttpError) -> bool:
+	content = _error_content(e)
+	return e.resp.status in (400, 409) and (
+		b"FAILED_PRECONDITION" in content or b"failedPrecondition" in content
+	)

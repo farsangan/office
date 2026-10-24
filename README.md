@@ -74,3 +74,11 @@ oldest enabled account with Push ticked.
 - Every saved contact is pushed, including ones Helpdesk and CRM create from emails.
   Tick **Skip Google Sync** on a contact to keep it out of Google.
 - Failed syncs are listed in **Error Log**.
+- Updating to this version clears the sync tokens (patch `reset_google_sync_tokens`), so the next
+  pull is one full sync. Linked contacts missing from Google are unlinked then.
+- Contacts blanked by the old delete bug can be restored from their Version history (only if
+  Contact tracks changes on your site). Check first with a dry run, then run it with `dry_run: 0`:
+  ```bash
+  bench --site <site> execute office.google_contacts_sync.repair.restore_wiped_contacts --kwargs "{'dry_run': 1}"
+  ```
+  `no_history` lists blanked contacts it can't restore; restore those from a backup.

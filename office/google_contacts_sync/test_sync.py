@@ -119,6 +119,17 @@ class TestGoogleContactsSync(IntegrationTestCase):
 		contact = frappe.get_doc("Contact", name)
 		self.assertFalse(contact.google_contacts_id)
 		self.assertTrue(contact.skip_google_sync)
+		self.assertEqual(contact.first_name, "Ali")  # data kept
+		self.assertEqual(contact.email_id, EMAIL)
+
+	def test_person_without_synced_data_does_not_blank_the_contact(self):
+		self.pull(person())
+
+		self.pull({"resourceName": RESOURCE, "etag": "etag-2"})
+
+		contact = self.contact()
+		self.assertEqual(contact.first_name, "Ali")
+		self.assertEqual(contact.email_id, EMAIL)
 
 	def test_existing_contact_with_same_email_is_merged_not_duplicated(self):
 		existing = self.make_contact(company_name="Farsangan")
@@ -184,11 +195,26 @@ class TestGoogleContactsSync(IntegrationTestCase):
 
 		sync.push_contact(contact.name, self.account)
 
+		self.assertIn("metadata", self.people.get.call_args.kwargs["personFields"])
 		kwargs = self.people.updateContact.call_args.kwargs
 		self.assertEqual(kwargs["resourceName"], RESOURCE)
+		self.assertNotIn("metadata", kwargs["updatePersonFields"])
 		self.assertEqual(kwargs["body"]["etag"], "etag-1")
-		self.assertEqual(kwargs["body"]["metadata"], person()["metadata"])
+		self.assertEqual(kwargs["body"]["metadata"], {"sources": person()["metadata"]["sources"]})
 		self.assertEqual(kwargs["body"]["names"][0]["givenName"], "Reza")
+
+	def test_push_unlinks_a_contact_deleted_in_google(self):
+		self.pull(person())
+		contact = self.contact()
+		self.people.get.return_value.execute.side_effect = HttpError(
+			MagicMock(status=404, reason="Not Found"), b'{"error": {"code": 404, "status": "NOT_FOUND"}}'
+		)
+
+		sync.push_contact(contact.name, self.account)
+
+		self.people.updateContact.assert_not_called()
+		self.assertFalse(frappe.db.get_value("Contact", contact.name, "google_contacts_id"))
+		self.assertTrue(frappe.db.get_value("Contact", contact.name, "skip_google_sync"))
 
 	def test_push_skips_when_google_already_matches(self):
 		self.pull(person())

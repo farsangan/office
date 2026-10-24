@@ -39,4 +39,8 @@ ruff check . && ruff format .
 - **`hooks.py`**: besides the doc_events and cron entry, it overrides Frappe's whitelisted `google_contacts.sync` (the "Sync Contacts" button) to run this module's pull instead.
 - **`install.py`** (`after_install`): adds `Contact.skip_google_sync` and `Google Contacts.google_sync_token`, and hides and clears Frappe's own `sync_with_google_contacts` checkbox so contacts aren't pushed twice.
 
-Synced fields are limited to names, company, designation, emails and phones (`PERSON_FIELDS`). Other Google fields must be left untouched on update.
+Synced fields are limited to names, company, designation, emails and phones (`SYNCED_FIELDS`, used for `updatePersonFields`). Reads use `PERSON_FIELDS` = `SYNCED_FIELDS` + `metadata`, because `metadata` carries the `sources` that `updateContact` requires and the `deleted` flag in sync results, and `updatePersonFields` must not contain it. Changing `PERSON_FIELDS` invalidates stored sync tokens (Google requires the same parameters), so it needs a patch that clears `google_sync_token`. Other Google fields must be left untouched on update.
+
+## Deployment
+
+In production the app is mounted read-only into the frappe_docker containers and updated with `git pull` → restart → `bench migrate`. So: pure Python only (no `public/` assets, no new pip dependencies), and since `after_install` never re-runs, every data or schema change for existing sites must be an idempotent patch in `office/patches/`, listed in `office/patches.txt`.
